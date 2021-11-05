@@ -27,7 +27,7 @@ class ChargeTemplateRec : public AlgBase
         ChargeTemplateRec(const std::string & name);
         ~ChargeTemplateRec();
         
-        double Chi2(double nhit,double x,double y,double z);
+        double Chi2(double nhit,double x,double y,double z,double lambda);
         double LogPoisson(double obj,double exp);
 
         bool initialize();
@@ -46,10 +46,10 @@ class ChargeTemplateRec : public AlgBase
             public:
                 VertexRecLikelihoodFCN(ChargeTemplateRec* rec_alg) { m_alg = rec_alg; }
                 double operator() (const std::vector<double>& x) const{
-                    return m_alg->Chi2(x[0],x[1],x[2],x[3]);
+                    return m_alg->Chi2(x[0],x[1],x[2],x[3],x[4]);
                 }
                 double operator() (const double *x) const{
-                    std::vector<double> p(x,x+4);
+                    std::vector<double> p(x,x+5);
                     return (*this)(p);
                 }
                 double Up() const { return 0.5; }
@@ -58,7 +58,7 @@ class ChargeTemplateRec : public AlgBase
         };
 
         // charge expectation
-        float CalExpChargeHit(float radius,float theta, float alpha);
+        float CalExpChargeHit(float radius,float theta, float alpha, float lambda);
 
     private:
         // input
@@ -86,6 +86,7 @@ class ChargeTemplateRec : public AlgBase
         float fCCRecX;
         float fCCRecY;
         float fCCRecZ;
+        float fDecayLength;
         float fChi2;
         
         // params to control the alg

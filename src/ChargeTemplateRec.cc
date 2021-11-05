@@ -83,6 +83,7 @@ bool ChargeTemplateRec::initialize()
     evt->Branch("fCCRecX", &fCCRecX, "fCCRecX/f");
     evt->Branch("fCCRecY", &fCCRecY, "fCCRecY/f");
     evt->Branch("fCCRecZ", &fCCRecZ, "fCCRecZ/f");
+    evt->Branch("fDecayLength", &fDecayLength, "fDecayLength/f");
     evt->Branch("fChi2", &fChi2, "fChi2/f");
 
     // create minimizer
@@ -170,45 +171,25 @@ bool ChargeTemplateRec::finalize()
     return true;
 }
 
-double ChargeTemplateRec::Chi2(double nhit,double vx,double vy,double vz)
+double ChargeTemplateRec::Chi2(
+        double nhit,double vx,double vy,double vz,double lambda)
 {
     float total_chi2 = 0;
     float exp_dark_noise = tao_sipm->get_num() * tao_sipm->get_dark_noise_prob();
 
     // calculate some value that is needed.
-    TVector3 v_vec = TVector3(vx,vy,vz);
-    // v_vec.SetMag(vx);
-    // v_vec.SetTheta(vy);
-    // v_vec.SetPhi(vz);
+    TVector3 v_vec = TVector3(vx, vy ,vz);
     float vr = v_vec.Mag();
 
-    int b_template_index = charge_template->get_template_index(vr); 
-    if (b_template_index >= TEMPLATENUM - 1){
-        b_template_index = TEMPLATENUM - 2;
-    }
-
-    float b_tmp_radius = charge_template->get_template_radius(b_template_index);
-    float f_tmp_radius = charge_template->get_template_radius(b_template_index + 1);
-    float fx = abs(pow(f_tmp_radius,1) - pow(vr,1));
-    float bx = abs(pow(b_tmp_radius,1) - pow(vr,1));
-    float b_weight = fx/(fx + bx);
-    float f_weight = bx/(fx + bx);
     for(int i=0;i < tao_sipm->get_num(); i++)
     {
-        float d2 = (tao_sipm->get_vec(i) - v_vec).Mag2();
-        float b_d2 = (tao_sipm->get_vec(i) - v_vec*(b_tmp_radius/vr)).Mag2();
-        float f_d2 = (tao_sipm->get_vec(i) - v_vec*(b_tmp_radius/vr)).Mag2();
 
-        float b_angle = v_vec.Angle(tao_sipm->get_vec(i) - v_vec*(b_tmp_radius/vr));
-        float cos_b_angle = std::cos(b_angle);
-        float f_angle = v_vec.Angle(tao_sipm->get_vec(i) - v_vec*(f_tmp_radius/vr));
-        float cos_f_angle = std::cos(f_angle);
-        float exp_hit = b_weight * (b_d2/d2) * charge_template->Interpolate(b_template_index,cos_b_angle) + f_weight * (f_d2/d2) * charge_template->Interpolate(b_template_index + 1, cos_f_angle);
+        float angle = v_vec.Angle(tao_sipm->get_vec(i) - v_vec);
+        float exp_hit = CalExpChargeHit(vr, angle*180/PI, nhit, lambda);
         if(open_dark_noise){
-            exp_hit *= (nhit - exp_dark_noise);
             exp_hit += tao_sipm->get_dark_noise_prob();
         }else{
-            exp_hit *= nhit;
+            exp_hit *= 1.0;
         }
         total_chi2 += LogPoisson(fSiPMHits[i],exp_hit);
     }
@@ -228,7 +209,7 @@ bool ChargeTemplateRec::update()
 bool ChargeTemplateRec::VertexMinimize()
 {
 
-    ROOT::Math::Functor vtxllf(*vtxllfcn,4);
+    ROOT::Math::Functor vtxllf(*vtxllfcn,5);
     vtxllminimizer->SetFunction(vtxllf);
     vtxllminimizer->SetMaxFunctionCalls(1e5);
     vtxllminimizer->SetMaxIterations(1e4);
@@ -242,7 +223,8 @@ bool ChargeTemplateRec::VertexMinimize()
         v_cc *= (890./fCCRadius);
         fCCRadius = 890;
     } 
-
+    
+    float estimated_decay_length = 12000;
     vtxllminimizer->SetLimitedVariable(0,"hits",fNSiPMHit,0.01,0.5*fNSiPMHit,1.5*fNSiPMHit);
     // vtxllminimizer->SetVariable(1,"radius",v_cc.Mag(),0.01);
     // vtxllminimizer->SetVariable(2,"theta",v_cc.Theta(),0.01);
@@ -250,6 +232,7 @@ bool ChargeTemplateRec::VertexMinimize()
     vtxllminimizer->SetVariable(1,"x",v_cc.X(),0.01);
     vtxllminimizer->SetVariable(2,"y",v_cc.Y(),0.01);
     vtxllminimizer->SetVariable(3,"z",v_cc.Z(),0.01);
+    vtxllminimizer->SetVariable(4,"lambda",estimated_decay_length,0.1);
 
     int goodness = vtxllminimizer->Minimize();
     std::cout << "Vertex Minimize :: Goodness = " << goodness << std::endl;
@@ -259,6 +242,7 @@ bool ChargeTemplateRec::VertexMinimize()
     fRecX    = xs[1];
     fRecY    = xs[2];
     fRecZ    = xs[3];
+    fDecayLength    = xs[4];
     fChi2    = vtxllminimizer->MinValue(); 
     return true;
 }
@@ -280,25 +264,17 @@ bool ChargeTemplateRec::CalChargeCenter()
     fCCRecX = cc_vec.X();
     fCCRecY = cc_vec.Y();
     fCCRecZ = cc_vec.Z();
-    // fCCRecX = fGdLSEdepX;    // fCCRecY = fGdLSEdepY;
-    // fCCRecY = fGdLSEdepY;
-    // fCCRecZ = fGdLSEdepZ;
 } 
  
 double ChargeTemplateRec::LogPoisson(double obj,double exp_n)
 {
-   
-
-    /*
-    double up=TMath::Poisson(obj,exp_n);
-    double low=TMath::Poisson(obj,obj);
-    if((-2.0*log(up/low))>1.e30) { return 1; }
-    return -2.0*log(up/low);
-    */
-
-    //return pow(exp_n-obj,2.0)/exp_n;
+    // simple chi2
+    // double p = pow(exp_n - obj,2)/exp_n;
     
-     
+    // likelihood
+    //double p = exp_n - obj * TMath::Log(exp_n);
+    
+    // likelihood ratio
     double p=2*(exp_n-obj);
     if(obj>0){
         p+=2*obj*TMath::Log(obj/exp_n);
@@ -306,7 +282,7 @@ double ChargeTemplateRec::LogPoisson(double obj,double exp_n)
     return p;
 }
 
-float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha)
+float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha, float lambda)
 {
     float sipm_area = tao_sipm->get_sipm_area();
     float sipm_radius = tao_sipm->get_sipm_radius();
@@ -314,6 +290,6 @@ float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha)
     float sin_theta = sin(theta*PI/180);
     float d = sqrt(sipm_radius*sipm_radius - radius*radius*sin_theta*sin_theta) - radius*cos_theta;
     float cos_theta_proj = (d*d + sipm_radius*sipm_radius - radius*radius)/(2*d*sipm_radius);
-    float exp_value = alpha*cos_theta_proj*sipm_area/(4*PI*d*d);
+    float exp_value = alpha*exp(-1.0*d/lambda)*cos_theta_proj*sipm_area/(4*PI*d*d);
     return exp_value;
 }
