@@ -16,6 +16,7 @@
 #include "Minuit2/FCNBase.h"
 #include <vector>
 
+#define NSCAN 360
 
 /*
  * ChargeTemplateRec
@@ -39,6 +40,8 @@ class ChargeTemplateRec : public AlgBase
         
         // Charge Center Reconstruction
         bool CalChargeCenter();
+
+        bool ScanLikelihood();
 
         // Use Minimizer for vertex reconstruction
         bool VertexMinimize();
@@ -88,6 +91,14 @@ class ChargeTemplateRec : public AlgBase
         float fCCRecZ;
         float fDecayLength;
         float fChi2;
+
+        // scan parameter
+        float fScanX[NSCAN] = {0};
+        float fScanXVal[NSCAN] = {0};
+        float fScanY[NSCAN] = {0};
+        float fScanYVal[NSCAN] = {0};
+        float fScanZ[NSCAN] = {0};
+        float fScanZVal[NSCAN] = {0};
         
         // params to control the alg
         bool open_dark_noise;

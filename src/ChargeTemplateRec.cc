@@ -24,6 +24,7 @@
 
 #include <boost/python.hpp>
 #include <vector>
+#include <iostream>
 
 DECLARE_ALGORITHM(ChargeTemplateRec);
 
@@ -72,6 +73,7 @@ bool ChargeTemplateRec::initialize()
     evt->Branch("evtID", &evtID, "evtID/I");
     evt->Branch("evtType", &evtType, "evtType/I");
     evt->Branch("fNSiPMHit", &fNSiPMHit, "fNSiPMHit/f");
+    evt->Branch("fSiPMHits", fSiPMHits, "fSiPMHits[4074]/F");
     evt->Branch("fGdLSEdep", &fGdLSEdep, "fGdLSEdep/f");
     evt->Branch("fGdLSEdepX", &fGdLSEdepX, "fGdLSEdepX/f");
     evt->Branch("fGdLSEdepY", &fGdLSEdepY, "fGdLSEdepY/f");
@@ -85,6 +87,12 @@ bool ChargeTemplateRec::initialize()
     evt->Branch("fCCRecZ", &fCCRecZ, "fCCRecZ/f");
     evt->Branch("fDecayLength", &fDecayLength, "fDecayLength/f");
     evt->Branch("fChi2", &fChi2, "fChi2/f");
+    evt->Branch("fScanX", fScanX, "fScanX[360]/F");
+    evt->Branch("fScanXVal", fScanXVal, "fScanXVal[360]/F");
+    evt->Branch("fScanY", fScanY, "fScanY[360]/F");
+    evt->Branch("fScanYVal", fScanYVal, "fScanYVal[360]/F");
+    evt->Branch("fScanZ", fScanZ, "fScanZ[360]/F");
+    evt->Branch("fScanZVal", fScanZVal, "fScanZVal[360]/F");
 
     // create minimizer
     vtxllfcn = new VertexRecLikelihoodFCN(this);
@@ -156,6 +164,8 @@ bool ChargeTemplateRec::execute()
     // fRecZ = fGdLSEdepZ;
     // fChi2 = Chi2(fNSiPMHit,fGdLSEdepX,fGdLSEdepY,fGdLSEdepZ);
     
+    // Scan value
+    // ScanLikelihood();
     // fill the event.
     evt->Fill();
 
@@ -292,4 +302,45 @@ float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha,
     float cos_theta_proj = (d*d + sipm_radius*sipm_radius - radius*radius)/(2*d*sipm_radius);
     float exp_value = alpha*exp(-1.0*d/lambda)*cos_theta_proj*sipm_area/(4*PI*d*d);
     return exp_value;
+}
+
+bool ChargeTemplateRec::ScanLikelihood()
+{
+    // Scan X first
+    for(int i=0; i< NSCAN; i++){
+        float x = (i - NSCAN/2)*900.0/(NSCAN/2);
+        float y = fRecY; 
+        float z = fRecZ;
+        float nhit = fRecNHit;
+        float lambda = fDecayLength; 
+        float likelihood = Chi2(nhit,x,y,z,lambda);
+        fScanX[i] = x;
+        fScanXVal[i] = likelihood;
+    }
+
+    // Scan Y
+    for(int i=0; i< NSCAN; i++){
+        float y = (i - NSCAN/2)*900.0/(NSCAN/2);
+        float x = fRecX; 
+        float z = fRecZ;
+        float nhit = fRecNHit;
+        float lambda = fDecayLength; 
+        float likelihood = Chi2(nhit,x,y,z,lambda);
+        fScanY[i] = y;
+        fScanYVal[i] = likelihood;
+    }
+
+    // Scan Z
+    for(int i=0; i< NSCAN; i++){
+        float z = (i - NSCAN/2)*900.0/(NSCAN/2);
+        float y = fRecY; 
+        float x = fRecX;
+        float nhit = fRecNHit;
+        float lambda = fDecayLength; 
+        float likelihood = Chi2(nhit,x,y,z,lambda);
+        fScanZ[i] = z;
+        fScanZVal[i] = likelihood;
+    }
+
+    return true;
 }
