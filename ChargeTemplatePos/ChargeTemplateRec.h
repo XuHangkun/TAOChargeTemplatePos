@@ -82,7 +82,7 @@ class ChargeTemplateRec : public AlgBase
         float fGdLSEdepY;
         float fGdLSEdepZ;
         float fNSiPMHit;
-        int fSiPMHits[SIPMNUM] = {0};
+        int   fSiPMHits[SIPMNUM] = {0};
         float fRecNHit;
         float fRecX;
         float fRecY;

@@ -74,7 +74,7 @@ bool ChargeTemplateRec::initialize()
     evt->Branch("evtID", &evtID, "evtID/I");
     evt->Branch("evtType", &evtType, "evtType/I");
     evt->Branch("fNSiPMHit", &fNSiPMHit, "fNSiPMHit/f");
-    evt->Branch("fSiPMHits", fSiPMHits, "fSiPMHits[4074]/F");
+    evt->Branch("fSiPMHits", fSiPMHits, "fSiPMHits[4074]/I");
     evt->Branch("fGdLSEdep", &fGdLSEdep, "fGdLSEdep/f");
     evt->Branch("fGdLSEdepX", &fGdLSEdepX, "fGdLSEdepX/f");
     evt->Branch("fGdLSEdepY", &fGdLSEdepY, "fGdLSEdepY/f");
@@ -184,14 +184,14 @@ bool ChargeTemplateRec::finalize()
 }
 
 double ChargeTemplateRec::Chi2(
-        double nhit,double vx,double vy,double vz,double lambda)
+        double nhit,double vr,double vtheta,double vphi,double lambda)
 {
     float total_chi2 = 0;
     float exp_dark_noise = tao_sipm->get_num() * tao_sipm->get_dark_noise_prob();
 
     // calculate some value that is needed.
-    TVector3 v_vec = TVector3(vx, vy ,vz);
-    float vr = v_vec.Mag();
+    TVector3 v_vec = TVector3(0, 0 ,1);
+    v_vec.SetMagThetaPhi(vr,vtheta,vphi);
 
     for(int i=0;i < tao_sipm->get_num(); i++)
     {
@@ -238,22 +238,21 @@ bool ChargeTemplateRec::VertexMinimize()
     
     float estimated_decay_length = 16.93*1000; // average absorption length in mm
     vtxllminimizer->SetVariable(0,"hits",fNSiPMHit*1.1,0.5);
-    // vtxllminimizer->SetVariable(1,"radius",v_cc.Mag(),0.01);
-    // vtxllminimizer->SetVariable(2,"theta",v_cc.Theta(),0.01);
-    // vtxllminimizer->SetVariable(3,"phi",v_cc.Phi(),0.01);
-    vtxllminimizer->SetVariable(1,"x",v_cc.X(),0.01);
-    vtxllminimizer->SetVariable(2,"y",v_cc.Y(),0.01);
-    vtxllminimizer->SetVariable(3,"z",v_cc.Z(),0.01);
+    vtxllminimizer->SetVariable(1,"radius",v_cc.Mag(),0.01);
+    vtxllminimizer->SetFixedVariable(2,"theta",v_cc.Theta());
+    vtxllminimizer->SetFixedVariable(3,"phi",v_cc.Phi());
     vtxllminimizer->SetFixedVariable(4,"lambda",estimated_decay_length);
 
     int goodness = vtxllminimizer->Minimize();
     std::cout << "Vertex Minimize :: Goodness = " << goodness << std::endl;
 
     const double *xs = vtxllminimizer->X();
+    TVector3 v_rec(0,0,1);
+    v_rec.SetMagThetaPhi(xs[1],xs[2],xs[3]);
     fRecNHit = xs[0];
-    fRecX    = xs[1];
-    fRecY    = xs[2];
-    fRecZ    = xs[3];
+    fRecX    = v_rec.X();
+    fRecY    = v_rec.Y();
+    fRecZ    = v_rec.Z();
     fDecayLength    = xs[4];
     fChi2    = vtxllminimizer->MinValue(); 
     fEdm     = vtxllminimizer->Edm();
