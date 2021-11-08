@@ -33,6 +33,7 @@ ChargeTemplateRec::ChargeTemplateRec(const std::string& name)
 {
     tao_sipm = new TaoSiPM();
     charge_template = new ChargeTemplate();
+    CD_radius = 900;
     
     declProp("open_dark_noise",open_dark_noise = false);
     declProp("cc_factor",cc_factor = 0.7035);
@@ -87,6 +88,7 @@ bool ChargeTemplateRec::initialize()
     evt->Branch("fCCRecZ", &fCCRecZ, "fCCRecZ/f");
     evt->Branch("fDecayLength", &fDecayLength, "fDecayLength/f");
     evt->Branch("fChi2", &fChi2, "fChi2/f");
+    evt->Branch("fEdm", &fEdm, "fEdm/f");
     evt->Branch("fScanX", fScanX, "fScanX[360]/F");
     evt->Branch("fScanXVal", fScanXVal, "fScanXVal[360]/F");
     evt->Branch("fScanY", fScanY, "fScanY[360]/F");
@@ -223,7 +225,7 @@ bool ChargeTemplateRec::VertexMinimize()
     vtxllminimizer->SetFunction(vtxllf);
     vtxllminimizer->SetMaxFunctionCalls(1e5);
     vtxllminimizer->SetMaxIterations(1e4);
-    vtxllminimizer->SetTolerance(0.001);
+    vtxllminimizer->SetTolerance(0.0001);
     vtxllminimizer->SetPrintLevel(1);
     
     TVector3 v_cc(fCCRecX,fCCRecY,fCCRecZ);
@@ -234,15 +236,15 @@ bool ChargeTemplateRec::VertexMinimize()
         fCCRadius = 890;
     } 
     
-    float estimated_decay_length = 12000;
-    vtxllminimizer->SetLimitedVariable(0,"hits",fNSiPMHit,0.01,0.5*fNSiPMHit,1.5*fNSiPMHit);
+    float estimated_decay_length = 16.93*1000; // average absorption length in mm
+    vtxllminimizer->SetVariable(0,"hits",fNSiPMHit*1.1,0.5);
     // vtxllminimizer->SetVariable(1,"radius",v_cc.Mag(),0.01);
     // vtxllminimizer->SetVariable(2,"theta",v_cc.Theta(),0.01);
     // vtxllminimizer->SetVariable(3,"phi",v_cc.Phi(),0.01);
     vtxllminimizer->SetVariable(1,"x",v_cc.X(),0.01);
     vtxllminimizer->SetVariable(2,"y",v_cc.Y(),0.01);
     vtxllminimizer->SetVariable(3,"z",v_cc.Z(),0.01);
-    vtxllminimizer->SetVariable(4,"lambda",estimated_decay_length,0.1);
+    vtxllminimizer->SetFixedVariable(4,"lambda",estimated_decay_length);
 
     int goodness = vtxllminimizer->Minimize();
     std::cout << "Vertex Minimize :: Goodness = " << goodness << std::endl;
@@ -254,6 +256,7 @@ bool ChargeTemplateRec::VertexMinimize()
     fRecZ    = xs[3];
     fDecayLength    = xs[4];
     fChi2    = vtxllminimizer->MinValue(); 
+    fEdm     = vtxllminimizer->Edm();
     return true;
 }
 
@@ -299,8 +302,9 @@ float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha,
     float cos_theta = cos(theta*PI/180);
     float sin_theta = sin(theta*PI/180);
     float d = sqrt(sipm_radius*sipm_radius - radius*radius*sin_theta*sin_theta) - radius*cos_theta;
+    float d_cd = sqrt(CD_radius*CD_radius - radius*radius*sin_theta*sin_theta) - radius*cos_theta;
     float cos_theta_proj = (d*d + sipm_radius*sipm_radius - radius*radius)/(2*d*sipm_radius);
-    float exp_value = alpha*exp(-1.0*d/lambda)*cos_theta_proj*sipm_area/(4*PI*d*d);
+    float exp_value = alpha*exp(-1.0*d_cd/lambda)*cos_theta_proj*sipm_area/(4*PI*d*d);
     return exp_value;
 }
 

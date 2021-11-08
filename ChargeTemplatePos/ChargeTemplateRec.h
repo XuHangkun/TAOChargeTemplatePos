@@ -67,6 +67,7 @@ class ChargeTemplateRec : public AlgBase
         // input
         TaoSiPM* tao_sipm;
         ChargeTemplate* charge_template;
+        float CD_radius;
 
         //minimizer
         ROOT::Math::Minimizer* vtxllminimizer;
@@ -91,6 +92,7 @@ class ChargeTemplateRec : public AlgBase
         float fCCRecZ;
         float fDecayLength;
         float fChi2;
+        float fEdm;
 
         // scan parameter
         float fScanX[NSCAN] = {0};
