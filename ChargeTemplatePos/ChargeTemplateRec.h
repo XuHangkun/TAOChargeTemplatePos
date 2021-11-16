@@ -81,8 +81,11 @@ class ChargeTemplateRec : public AlgBase
         float fGdLSEdepX;
         float fGdLSEdepY;
         float fGdLSEdepZ;
-        float fNSiPMHit;
+        int   fNSiPMHit;
         int   fSiPMHits[SIPMNUM] = {0};
+        std::vector<int> fSiPMHitID;
+        std::vector<int> fSiPMCovHit;
+        std::vector<float> fSiPMHitE;
         float fRecNHit;
         float fRecX;
         float fRecY;

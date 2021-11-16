@@ -73,8 +73,11 @@ bool ChargeTemplateRec::initialize()
     evt = rootwriter->bookTree("ANASIMEVT/myevt", "user defined data");
     evt->Branch("evtID", &evtID, "evtID/I");
     evt->Branch("evtType", &evtType, "evtType/I");
-    evt->Branch("fNSiPMHit", &fNSiPMHit, "fNSiPMHit/f");
+    evt->Branch("fNSiPMHit", &fNSiPMHit, "fNSiPMHit/I");
     evt->Branch("fSiPMHits", fSiPMHits, "fSiPMHits[4074]/I");
+    evt->Branch("fSiPMHitID", &fSiPMHitID);
+    evt->Branch("fSiPMHitE", &fSiPMHitE);
+    evt->Branch("fSiPMCovHit", &fSiPMCovHit);
     evt->Branch("fGdLSEdep", &fGdLSEdep, "fGdLSEdep/f");
     evt->Branch("fGdLSEdepX", &fGdLSEdepX, "fGdLSEdepX/f");
     evt->Branch("fGdLSEdepY", &fGdLSEdepY, "fGdLSEdepY/f");
@@ -136,7 +139,9 @@ bool ChargeTemplateRec::execute()
     fGdLSEdepY = sim_event->GdLSEdepY();
     fGdLSEdepZ = sim_event->GdLSEdepZ();
     fNSiPMHit = sim_event->NSiPMHit();
-    std::vector<int> fSiPMHitID = sim_event->SiPMHitID();
+    fSiPMHitID = sim_event->SiPMHitID();
+    fSiPMCovHit = sim_event->SiPMCovHit();
+    fSiPMHitE = sim_event->SiPMHitE();
     for(int i=0;i<fSiPMHitID.size();i++)
     {
         fSiPMHits[fSiPMHitID[i]]++;
@@ -192,7 +197,7 @@ double ChargeTemplateRec::Chi2(
     // calculate some value that is needed.
     TVector3 v_vec = TVector3(0, 0 ,1);
     v_vec.SetMagThetaPhi(vr,vtheta,vphi);
-
+    
     for(int i=0;i < tao_sipm->get_num(); i++)
     {
 
@@ -230,6 +235,12 @@ bool ChargeTemplateRec::VertexMinimize()
     
     TVector3 v_cc(fCCRecX,fCCRecY,fCCRecZ);
     float fCCRadius = v_cc.Mag();
+    float fCCTheta = v_cc.Theta()*180/PI;
+    if(fCCTheta < 20 || fCCTheta > 160)
+    {
+        fCCRadius *= (1 + 0.1*fCCRadius/900);
+        v_cc.SetMag(fCCRadius);
+    }
     while (fCCRadius > 900)
     {
         v_cc *= (890./fCCRadius);
@@ -239,8 +250,8 @@ bool ChargeTemplateRec::VertexMinimize()
     float estimated_decay_length = 16.93*1000; // average absorption length in mm
     vtxllminimizer->SetVariable(0,"hits",fNSiPMHit*1.1,0.5);
     vtxllminimizer->SetVariable(1,"radius",v_cc.Mag(),0.01);
-    vtxllminimizer->SetFixedVariable(2,"theta",v_cc.Theta());
-    vtxllminimizer->SetFixedVariable(3,"phi",v_cc.Phi());
+    vtxllminimizer->SetVariable(2,"theta",v_cc.Theta(),0.01);
+    vtxllminimizer->SetVariable(3,"phi",v_cc.Phi(),0.01);
     vtxllminimizer->SetFixedVariable(4,"lambda",estimated_decay_length);
 
     int goodness = vtxllminimizer->Minimize();
@@ -269,8 +280,8 @@ bool ChargeTemplateRec::CalChargeCenter()
     if(open_dark_noise)
     {
         float exp_dark_noise = tao_sipm->get_num()*tao_sipm->get_dark_noise_prob();
-        float corr_factor = fNSiPMHit/(fNSiPMHit - exp_dark_noise);
-        cc_vec *= corr_factor;
+        float cor_factor = fNSiPMHit/(fNSiPMHit - exp_dark_noise);
+        cc_vec *= cor_factor;
     }
 
     fCCRecX = cc_vec.X();
@@ -284,7 +295,13 @@ double ChargeTemplateRec::LogPoisson(double obj,double exp_n)
     // double p = pow(exp_n - obj,2)/exp_n;
     
     // likelihood
-    //double p = exp_n - obj * TMath::Log(exp_n);
+    // double p = exp_n - obj * TMath::Log(exp_n);
+    // double v = 1.0;
+    // for(int i=1;i<=obj;i++)
+    // {
+    //     v *= i;
+    // }
+    // p += TMath::Log(v);
     
     // likelihood ratio
     double p=2*(exp_n-obj);
@@ -302,8 +319,14 @@ float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha,
     float sin_theta = sin(theta*PI/180);
     float d = sqrt(sipm_radius*sipm_radius - radius*radius*sin_theta*sin_theta) - radius*cos_theta;
     float d_cd = sqrt(CD_radius*CD_radius - radius*radius*sin_theta*sin_theta) - radius*cos_theta;
+    // calculate solid angle
     float cos_theta_proj = (d*d + sipm_radius*sipm_radius - radius*radius)/(2*d*sipm_radius);
-    float exp_value = alpha*exp(-1.0*d_cd/lambda)*cos_theta_proj*sipm_area/(4*PI*d*d);
+    float sin_theta_proj = sqrt(1 - cos_theta_proj*cos_theta_proj);
+    float factor = sipm_area/(d*d);
+    float solid_angle = factor*cos_theta_proj;  // first order
+    solid_angle += (5.0*cos_theta_proj*pow(sin_theta_proj,2) - 2*cos_theta_proj)*pow(factor,2)/16.0;
+
+    float exp_value = alpha*exp(-1.0*d_cd/lambda)*solid_angle/(4*PI);
     return exp_value;
 }
 
