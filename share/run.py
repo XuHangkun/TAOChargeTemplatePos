@@ -10,7 +10,10 @@ def get_parser():
     parser = argparse.ArgumentParser(description='Run Tao Detector Simulation Analysis.')
     parser.add_argument("--evtmax", type=int, default=10, help='events to be processed')
     parser.add_argument("--seed", type=int, default=42, help='seed')
-    parser.add_argument("--open_dark_noise", action = "store_true", help='consider the case of dark noise')
+    parser.add_argument("--temp_radius", type = int, default = 0, help= "Charge Template Radius")
+    parser.add_argument("--close_dark_noise", action = "store_true", help='close dark noise')
+    parser.add_argument("--close_inter_ct", action = "store_true", help='close internal cross talk')
+    parser.add_argument("--close_charge_resolution", action = "store_true", help='close charge resolution')
     parser.add_argument("--input", default=None, nargs='+', help="specify input filename")
     parser.add_argument("--output", default="user-ana-output.root", help="specify output filename")
     parser.add_argument("--algorithm", default="ChargeTemplateRec", help="specify the analysis algorithm")
@@ -60,7 +63,13 @@ if __name__ == "__main__":
     # Sniper.loadDll("libTaoSimAna.so")
     Sniper.loadDll("libChargeTemplatePos.so")
     anadetsimalg = task.createAlg(args.algorithm)
-    anadetsimalg.property("open_dark_noise").set(args.open_dark_noise)
+    anadetsimalg.property("CloseInterCT").set(args.close_inter_ct)
+    anadetsimalg.property("CloseChargeResolution").set(args.close_charge_resolution)
+    if args.algorithm == "MakeChargeTemplate":
+        anadetsimalg.property("TempRadius").set(args.temp_radius)
+        anadetsimalg.property("CloseDarkNoise").set(True)
+    else:
+        anadetsimalg.property("CloseDarkNoise").set(args.close_dark_noise)
 
     task.show()
     task.run()

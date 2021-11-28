@@ -15,6 +15,8 @@ TaoSiPM::TaoSiPM()
     sipm_noise = 100;
     sipm_readout_window = 600*1.e-9;
     dark_noise_prob = sipm_area*sipm_noise*sipm_readout_window;
+    inter_cross_talk_prob = 0.2;
+    charge_resolution = 0.16;
     initialize();
 }
 

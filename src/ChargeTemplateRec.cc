@@ -34,13 +34,15 @@ ChargeTemplateRec::ChargeTemplateRec(const std::string& name)
     tao_sipm = new TaoSiPM();
     charge_template = new ChargeTemplate();
     CD_radius = 900;
-    
-    declProp("open_dark_noise",open_dark_noise = false);
-    declProp("cc_factor",cc_factor = 0.7035);
 
-    // print
-    LogDebug << "Open dark noise : "<<open_dark_noise<<std::endl;
-    LogDebug << "Charge center alg. factor : "<<cc_factor<<std::endl;
+    declProp("CloseDarkNoise", close_dark_noise = false);
+    declProp("CloseInterCT", close_inter_ct = false);
+    declProp("CloseChargeResolution", close_charge_resolution = false);
+    declProp("CCFactor",cc_factor = 0.7035);
+
+    // generate elec effects
+    elec_effects = new ElecEffects(tao_sipm);
+
 }
 
 ChargeTemplateRec::~ChargeTemplateRec()
@@ -49,6 +51,25 @@ ChargeTemplateRec::~ChargeTemplateRec()
 
 bool ChargeTemplateRec::initialize()
 {
+    // Parameters
+    if ( close_dark_noise )
+    { 
+        elec_effects -> set_open_dark_noise(false); 
+    } 
+    if ( close_inter_ct )
+    { 
+        elec_effects -> set_open_inter_CT(false); 
+    } 
+    if ( close_charge_resolution )
+    { 
+        elec_effects -> set_open_charge_resolution(false); 
+    } 
+    std::cout << "Electronic Effects : " << std::endl;
+    std::cout << "Open Dark Noise : "<<elec_effects->get_open_dark_noise() << std::endl;
+    std::cout << "Open Internal Cross Noise : "<<elec_effects->get_open_inter_CT() << std::endl;
+    std::cout << "Open Charge Resolution : "<<elec_effects->get_open_charge_resolution() << std::endl;
+    std::cout << "Charge center alg. factor : "<<cc_factor<<std::endl;
+
     // = access the geometry =
     // SniperPtr<SimGeomSvc> simgeom_svc(getParent(), "SimGeomSvc");
     // // == check exist or not ==
@@ -73,11 +94,12 @@ bool ChargeTemplateRec::initialize()
     evt = rootwriter->bookTree("ANASIMEVT/myevt", "user defined data");
     evt->Branch("evtID", &evtID, "evtID/I");
     evt->Branch("evtType", &evtType, "evtType/I");
-    evt->Branch("fNSiPMHit", &fNSiPMHit, "fNSiPMHit/I");
-    evt->Branch("fSiPMHits", fSiPMHits, "fSiPMHits[4074]/I");
+    evt->Branch("fNSiPMHit", &fNSiPMHit, "fNSiPMHit/F");
+    evt->Branch("fSiPMHits", fSiPMHits, "fSiPMHits[4074]/F");
     evt->Branch("fSiPMHitID", &fSiPMHitID);
-    evt->Branch("fSiPMHitE", &fSiPMHitE);
-    evt->Branch("fSiPMCovHit", &fSiPMCovHit);
+    evt->Branch("fSiPMDN", fSiPMDN,"fSiPMDN[4074]/F");
+    evt->Branch("fSiPMCT", fSiPMCT,"fSiPMCT[4074]/F");
+    evt->Branch("fSiPMCR", fSiPMCR,"fSiPMCR[4074]/F");
     evt->Branch("fGdLSEdep", &fGdLSEdep, "fGdLSEdep/f");
     evt->Branch("fGdLSEdepX", &fGdLSEdepX, "fGdLSEdepX/f");
     evt->Branch("fGdLSEdepY", &fGdLSEdepY, "fGdLSEdepY/f");
@@ -92,12 +114,6 @@ bool ChargeTemplateRec::initialize()
     evt->Branch("fDecayLength", &fDecayLength, "fDecayLength/f");
     evt->Branch("fChi2", &fChi2, "fChi2/f");
     evt->Branch("fEdm", &fEdm, "fEdm/f");
-    evt->Branch("fScanX", fScanX, "fScanX[360]/F");
-    evt->Branch("fScanXVal", fScanXVal, "fScanXVal[360]/F");
-    evt->Branch("fScanY", fScanY, "fScanY[360]/F");
-    evt->Branch("fScanYVal", fScanYVal, "fScanYVal[360]/F");
-    evt->Branch("fScanZ", fScanZ, "fScanZ[360]/F");
-    evt->Branch("fScanZVal", fScanZVal, "fScanZVal[360]/F");
 
     // create minimizer
     vtxllfcn = new VertexRecLikelihoodFCN(this);
@@ -140,25 +156,17 @@ bool ChargeTemplateRec::execute()
     fGdLSEdepZ = sim_event->GdLSEdepZ();
     fNSiPMHit = sim_event->NSiPMHit();
     fSiPMHitID = sim_event->SiPMHitID();
-    fSiPMCovHit = sim_event->SiPMCovHit();
-    fSiPMHitE = sim_event->SiPMHitE();
     for(int i=0;i<fSiPMHitID.size();i++)
     {
         fSiPMHits[fSiPMHitID[i]]++;
     }
 
-    // Add dark noise simply
-    if(open_dark_noise){
-        float d_p = tao_sipm->get_dark_noise_prob();
-        for(int i=0;i < tao_sipm->get_num(); i++)
-        {
-            float rand = myrandom();
-            if(rand < d_p)
-            {
-                fSiPMHits[i] ++;
-                fNSiPMHit ++;
-            }
-        }
+    // Add Electronic Effects
+    fNSiPMHit = 0;
+    for(int i=0;i < SIPMNUM;i++)
+    {
+        fSiPMHits[i] = elec_effects->AddElecEffects(fSiPMHits[i]);
+        fNSiPMHit += fSiPMHits[i];
     }
 
     // charge center reconstruction
@@ -166,13 +174,7 @@ bool ChargeTemplateRec::execute()
 
     // start reconstruction
     VertexMinimize();
-    // fRecX = fGdLSEdepX;
-    // fRecY = fGdLSEdepY;
-    // fRecZ = fGdLSEdepZ;
-    // fChi2 = Chi2(fNSiPMHit,fGdLSEdepX,fGdLSEdepY,fGdLSEdepZ);
     
-    // Scan value
-    // ScanLikelihood();
     // fill the event.
     evt->Fill();
 
@@ -201,12 +203,13 @@ double ChargeTemplateRec::Chi2(
     for(int i=0;i < tao_sipm->get_num(); i++)
     {
 
-        float angle = v_vec.Angle(tao_sipm->get_vec(i) - v_vec);
+        // float angle = v_vec.Angle(tao_sipm->get_vec(i) - v_vec);
+        float angle = v_vec.Angle(tao_sipm->get_vec(i));
         float exp_hit = CalExpChargeHit(vr, angle*180/PI, nhit, lambda);
-        if(open_dark_noise){
-            exp_hit += tao_sipm->get_dark_noise_prob();
-        }else{
+        if(close_dark_noise){
             exp_hit *= 1.0;
+        }else{
+            exp_hit += tao_sipm->get_dark_noise_prob();
         }
         total_chi2 += LogPoisson(fSiPMHits[i],exp_hit);
     }
@@ -277,7 +280,11 @@ bool ChargeTemplateRec::CalChargeCenter()
         cc_vec += fSiPMHits[i]*tao_sipm->get_vec(i);
     }
     cc_vec *= (1.0/cc_factor)*(1.0/fNSiPMHit);
-    if(open_dark_noise)
+    if(close_dark_noise)
+    {
+        cc_vec *= 1;
+    }
+    else
     {
         float exp_dark_noise = tao_sipm->get_num()*tao_sipm->get_dark_noise_prob();
         float cor_factor = fNSiPMHit/(fNSiPMHit - exp_dark_noise);
@@ -291,21 +298,9 @@ bool ChargeTemplateRec::CalChargeCenter()
  
 double ChargeTemplateRec::LogPoisson(double obj,double exp_n)
 {
-    // simple chi2
-    // double p = pow(exp_n - obj,2)/exp_n;
-    
-    // likelihood
-    // double p = exp_n - obj * TMath::Log(exp_n);
-    // double v = 1.0;
-    // for(int i=1;i<=obj;i++)
-    // {
-    //     v *= i;
-    // }
-    // p += TMath::Log(v);
-    
     // likelihood ratio
     double p=2*(exp_n-obj);
-    if(obj>0){
+    if(obj>0.01){
         p+=2*obj*TMath::Log(obj/exp_n);
     }
     return p;
@@ -317,8 +312,9 @@ float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha,
     float sipm_radius = tao_sipm->get_sipm_radius();
     float cos_theta = cos(theta*PI/180);
     float sin_theta = sin(theta*PI/180);
-    float d = sqrt(sipm_radius*sipm_radius - radius*radius*sin_theta*sin_theta) - radius*cos_theta;
-    float d_cd = sqrt(CD_radius*CD_radius - radius*radius*sin_theta*sin_theta) - radius*cos_theta;
+    // cross angle of vertex vector and sipm vertor
+    float d = sqrt(sipm_radius*sipm_radius + radius*radius - 2*sipm_radius*radius*cos_theta);
+    float d_cd = d;
     // calculate solid angle
     float cos_theta_proj = (d*d + sipm_radius*sipm_radius - radius*radius)/(2*d*sipm_radius);
     float sin_theta_proj = sqrt(1 - cos_theta_proj*cos_theta_proj);
@@ -328,45 +324,4 @@ float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha,
 
     float exp_value = alpha*exp(-1.0*d_cd/lambda)*solid_angle/(4*PI);
     return exp_value;
-}
-
-bool ChargeTemplateRec::ScanLikelihood()
-{
-    // Scan X first
-    for(int i=0; i< NSCAN; i++){
-        float x = (i - NSCAN/2)*900.0/(NSCAN/2);
-        float y = fRecY; 
-        float z = fRecZ;
-        float nhit = fRecNHit;
-        float lambda = fDecayLength; 
-        float likelihood = Chi2(nhit,x,y,z,lambda);
-        fScanX[i] = x;
-        fScanXVal[i] = likelihood;
-    }
-
-    // Scan Y
-    for(int i=0; i< NSCAN; i++){
-        float y = (i - NSCAN/2)*900.0/(NSCAN/2);
-        float x = fRecX; 
-        float z = fRecZ;
-        float nhit = fRecNHit;
-        float lambda = fDecayLength; 
-        float likelihood = Chi2(nhit,x,y,z,lambda);
-        fScanY[i] = y;
-        fScanYVal[i] = likelihood;
-    }
-
-    // Scan Z
-    for(int i=0; i< NSCAN; i++){
-        float z = (i - NSCAN/2)*900.0/(NSCAN/2);
-        float y = fRecY; 
-        float x = fRecX;
-        float nhit = fRecNHit;
-        float lambda = fDecayLength; 
-        float likelihood = Chi2(nhit,x,y,z,lambda);
-        fScanZ[i] = z;
-        fScanZVal[i] = likelihood;
-    }
-
-    return true;
 }

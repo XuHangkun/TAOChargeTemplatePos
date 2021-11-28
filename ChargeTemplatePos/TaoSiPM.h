@@ -21,6 +21,8 @@ class TaoSiPM
         float get_sipm_area() { return sipm_area; }
         float get_sipm_radius() { return sipm_radius; }
         float get_dark_noise_prob() { return dark_noise_prob; }
+        float get_inter_cross_talk_prob() { return inter_cross_talk_prob; }
+        float get_charge_resolution() { return charge_resolution; }
         float get_theta(const int index) { return sipm_theta[index]; }
         float get_phi(const int index) { return sipm_phi[index]; }
         TVector3 get_vec(const int index) { return sipm_vec[index]; }
@@ -28,10 +30,12 @@ class TaoSiPM
     private:
         //params of sipm
         int sipm_num;
-        float sipm_area;    // mm^2
-        float sipm_noise;   // Hz/mm^2
+        float sipm_area;           // mm^2
+        float sipm_noise;          // Hz/mm^2
         float sipm_readout_window; //s
         float dark_noise_prob;
+        float inter_cross_talk_prob;
+        float charge_resolution;
         float sipm_radius;
         float sipm_theta[SIPMNUM] = {0};
         float sipm_phi[SIPMNUM] = {0};

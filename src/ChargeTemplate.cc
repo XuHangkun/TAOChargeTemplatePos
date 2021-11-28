@@ -31,7 +31,6 @@ bool ChargeTemplate::initialize()
         double radius = 0;
         char tmp_name[30];
         info_file >> radius >> tmp_name;   
-        cout << radius<< " " << tmp_name << endl;
         tmp_radius[i] = radius;
         // sprintf(tmp_name,"r_%d.0",int(radius));
         tmp[i] = (TH1F*) tmp_file->Get(tmp_name);

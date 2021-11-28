@@ -9,6 +9,7 @@
 #include "SniperKernel/AlgFactory.h"
 #include "ChargeTemplatePos/ChargeTemplate.h"
 #include "ChargeTemplatePos/TaoSiPM.h"
+#include "ChargeTemplatePos/ElecEffects.h"
 
 #include "Math/Minimizer.h"
 #include "Math/Functor.h"
@@ -41,8 +42,6 @@ class ChargeTemplateRec : public AlgBase
         // Charge Center Reconstruction
         bool CalChargeCenter();
 
-        bool ScanLikelihood();
-
         // Use Minimizer for vertex reconstruction
         bool VertexMinimize();
         class VertexRecLikelihoodFCN: public ROOT::Minuit2::FCNBase {
@@ -66,6 +65,7 @@ class ChargeTemplateRec : public AlgBase
     private:
         // input
         TaoSiPM* tao_sipm;
+        ElecEffects* elec_effects;
         ChargeTemplate* charge_template;
         float CD_radius;
 
@@ -81,11 +81,12 @@ class ChargeTemplateRec : public AlgBase
         float fGdLSEdepX;
         float fGdLSEdepY;
         float fGdLSEdepZ;
-        int   fNSiPMHit;
-        int   fSiPMHits[SIPMNUM] = {0};
+        float fNSiPMHit;
+        float fSiPMHits[SIPMNUM] = {0};
         std::vector<int> fSiPMHitID;
-        std::vector<int> fSiPMCovHit;
-        std::vector<float> fSiPMHitE;
+        float fSiPMDN[SIPMNUM] = {0};
+        float fSiPMCT[SIPMNUM] = {0};
+        float fSiPMCR[SIPMNUM] = {0};
         float fRecNHit;
         float fRecX;
         float fRecY;
@@ -97,16 +98,10 @@ class ChargeTemplateRec : public AlgBase
         float fChi2;
         float fEdm;
 
-        // scan parameter
-        float fScanX[NSCAN] = {0};
-        float fScanXVal[NSCAN] = {0};
-        float fScanY[NSCAN] = {0};
-        float fScanYVal[NSCAN] = {0};
-        float fScanZ[NSCAN] = {0};
-        float fScanZVal[NSCAN] = {0};
-        
         // params to control the alg
-        bool open_dark_noise;
+        bool close_dark_noise;
+        bool close_inter_ct;
+        bool close_charge_resolution;
         float cc_factor;
 };
 
