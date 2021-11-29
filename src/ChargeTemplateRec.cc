@@ -203,8 +203,7 @@ double ChargeTemplateRec::Chi2(
     for(int i=0;i < tao_sipm->get_num(); i++)
     {
 
-        // float angle = v_vec.Angle(tao_sipm->get_vec(i) - v_vec);
-        float angle = v_vec.Angle(tao_sipm->get_vec(i));
+        float angle = v_vec.Angle(tao_sipm->get_vec(i) - v_vec);
         float exp_hit = CalExpChargeHit(vr, angle*180/PI, nhit, lambda);
         if(close_dark_noise){
             exp_hit *= 1.0;
@@ -251,7 +250,7 @@ bool ChargeTemplateRec::VertexMinimize()
     } 
     
     float estimated_decay_length = 16.93*1000; // average absorption length in mm
-    vtxllminimizer->SetVariable(0,"hits",fNSiPMHit*1.1,0.5);
+    vtxllminimizer->SetVariable(0,"hits",fNSiPMHit,0.5);
     vtxllminimizer->SetVariable(1,"radius",v_cc.Mag(),0.01);
     vtxllminimizer->SetVariable(2,"theta",v_cc.Theta(),0.01);
     vtxllminimizer->SetVariable(3,"phi",v_cc.Phi(),0.01);
@@ -308,20 +307,6 @@ double ChargeTemplateRec::LogPoisson(double obj,double exp_n)
 
 float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha, float lambda)
 {
-    float sipm_area = tao_sipm->get_sipm_area();
-    float sipm_radius = tao_sipm->get_sipm_radius();
-    float cos_theta = cos(theta*PI/180);
-    float sin_theta = sin(theta*PI/180);
-    // cross angle of vertex vector and sipm vertor
-    float d = sqrt(sipm_radius*sipm_radius + radius*radius - 2*sipm_radius*radius*cos_theta);
-    float d_cd = d;
-    // calculate solid angle
-    float cos_theta_proj = (d*d + sipm_radius*sipm_radius - radius*radius)/(2*d*sipm_radius);
-    float sin_theta_proj = sqrt(1 - cos_theta_proj*cos_theta_proj);
-    float factor = sipm_area/(d*d);
-    float solid_angle = factor*cos_theta_proj;  // first order
-    solid_angle += (5.0*cos_theta_proj*pow(sin_theta_proj,2) - 2*cos_theta_proj)*pow(factor,2)/16.0;
-
-    float exp_value = alpha*exp(-1.0*d_cd/lambda)*solid_angle/(4*PI);
-    return exp_value;
+    float exp_hit = charge_template -> CalExpChargeHit(radius, theta, alpha); 
+    return exp_hit;
 }

@@ -12,6 +12,7 @@ ChargeTemplate::ChargeTemplate()
 {
     tmp_num = TEMPLATENUM;
     cd_radius = 900;
+    sipm_radius = 900;
     delta_r3 = pow(cd_radius,3)*1.0/(tmp_num - 1);
     initialize();
 }
@@ -24,7 +25,7 @@ bool ChargeTemplate::initialize()
 {
     string root_dir = getenv("CHARGETEMPLATEPOSROOT");
     ifstream info_file((root_dir + "/input/templates.txt").c_str());
-    string file_name = "/input/templates.root";
+    string file_name = "/input/old_templates.root";
     tmp_file = new TFile((root_dir + file_name).c_str());
     for(int i = 0;i < tmp_num ;i++)
     {
@@ -65,9 +66,9 @@ TH1F* ChargeTemplate::get_template(int index)
     return tmp[c_index];
 }
 
-float ChargeTemplate::Interpolate(int index, float cos_theta)
+float ChargeTemplate::Interpolate(int index, float theta)
 {
-    float angle = acos(cos_theta)*180/PI; 
+    float angle = theta; 
     int c_index = correct_index(index);
     return tmp[c_index]->Interpolate(angle);
 }
@@ -87,4 +88,45 @@ int ChargeTemplate::correct_index(int index)
         return TEMPLATENUM - 1;
     }
     return index;
+}
+
+float ChargeTemplate::cal_sipm_proj(float radius, float theta)
+{
+    float cos_theta = cos(theta*PI/180);
+    float sin_theta = sin(theta*PI/180);
+    float d = sqrt(sipm_radius*sipm_radius + radius*radius*sin_theta*sin_theta) - radius*cos_theta;
+    float cos_theta_proj = (d*d + sipm_radius*sipm_radius - radius*radius)/(2*d*sipm_radius);
+    return cos_theta_proj;
+}
+
+float ChargeTemplate::cal_sipm_distance(float radius, float theta)
+{
+    float cos_theta = cos(theta*PI/180);
+    float sin_theta = sin(theta*PI/180);
+    float d = sqrt(sipm_radius*sipm_radius + radius*radius*sin_theta*sin_theta) - radius*cos_theta;
+    return d;
+}
+
+float ChargeTemplate::CalExpChargeHit(float radius, float theta, float alpha)
+{
+    int index = get_template_index(radius);
+    // before charge template information
+    float b_tmp_radius = get_template_radius(index);
+    float b_correct_factor = cal_sipm_proj(b_tmp_radius, theta)/pow(cal_sipm_distance(b_tmp_radius, theta),2);
+    TH1F* b_temp = get_template(index);
+    float b_temp_hit = b_temp -> Interpolate(theta);
+    // after charge template information
+    float f_tmp_radius = get_template_radius(index + 1);
+    float f_correct_factor = cal_sipm_proj(f_tmp_radius, theta)/pow(cal_sipm_distance(f_tmp_radius, theta),2);
+    TH1F* f_temp = get_template(index + 1);
+    float f_temp_hit = f_temp -> Interpolate(theta);
+
+    // calculate weight
+    float b_weight = abs(pow(radius,3) - pow(f_tmp_radius,3))/(abs(pow(radius,3) - pow(b_tmp_radius,3)) + abs(pow(radius,3) - pow(f_tmp_radius,3)));
+
+    // cal ..
+    float correct_factor = cal_sipm_proj(radius, theta)/pow(cal_sipm_distance(radius, theta),2);
+    float exp_hit = correct_factor*(b_weight*b_temp_hit/b_correct_factor + (1 - b_weight)*f_temp_hit/f_correct_factor);
+    
+    return alpha*exp_hit;
 }
