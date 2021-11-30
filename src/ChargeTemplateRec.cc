@@ -203,8 +203,8 @@ double ChargeTemplateRec::Chi2(
     for(int i=0;i < tao_sipm->get_num(); i++)
     {
 
-        // float angle = v_vec.Angle(tao_sipm->get_vec(i) - v_vec);
-        float angle = v_vec.Angle(tao_sipm->get_vec(i));
+        float angle = v_vec.Angle(tao_sipm->get_vec(i) - v_vec);
+        // float angle = v_vec.Angle(tao_sipm->get_vec(i));
         float exp_hit = CalExpChargeHit(vr, angle*180/PI, nhit, lambda);
         if(close_dark_noise){
             exp_hit *= 1.0;
@@ -313,7 +313,8 @@ float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha,
     float cos_theta = cos(theta*PI/180);
     float sin_theta = sin(theta*PI/180);
     // cross angle of vertex vector and sipm vertor
-    float d = sqrt(sipm_radius*sipm_radius + radius*radius - 2*sipm_radius*radius*cos_theta);
+    float d = sqrt(sipm_radius*sipm_radius - radius*radius*sin_theta*sin_theta) - radius*cos_theta;
+    // float d = sqrt(sipm_radius*sipm_radius + radius*radius - 2*radius*sipm_radius*cos_theta);
     float d_cd = d;
     // calculate solid angle
     float cos_theta_proj = (d*d + sipm_radius*sipm_radius - radius*radius)/(2*d*sipm_radius);
