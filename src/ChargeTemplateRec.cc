@@ -38,7 +38,7 @@ ChargeTemplateRec::ChargeTemplateRec(const std::string& name)
     declProp("CloseDarkNoise", close_dark_noise = false);
     declProp("CloseInterCT", close_inter_ct = false);
     declProp("CloseChargeResolution", close_charge_resolution = false);
-    declProp("CCFactor",cc_factor = 0.7035);
+    declProp("CCFactor",cc_factor = 0.602);
 
     // generate elec effects
     elec_effects = new ElecEffects(tao_sipm);
@@ -278,7 +278,8 @@ bool ChargeTemplateRec::CalChargeCenter()
     for(int i=0; i < SIPMNUM;i ++){
         cc_vec += fSiPMHits[i]*tao_sipm->get_vec(i);
     }
-    cc_vec *= (1.0/cc_factor)*(1.0/fNSiPMHit);
+    // cc_vec *= (1.0/cc_factor)*(1.0/fNSiPMHit);
+    cc_vec *= (1.0/1.0)*(1.0/fNSiPMHit);
     if(close_dark_noise)
     {
         cc_vec *= 1;
@@ -289,6 +290,7 @@ bool ChargeTemplateRec::CalChargeCenter()
         float cor_factor = fNSiPMHit/(fNSiPMHit - exp_dark_noise);
         cc_vec *= cor_factor;
     }
+    cc_vec.SetMag(sqrt(cc_vec.Mag()/(1.69e-4) + 1447*1447) - 1447);
 
     fCCRecX = cc_vec.X();
     fCCRecY = cc_vec.Y();

@@ -35,6 +35,7 @@ bool TaoSiPM::initialize()
     for(int i = 0;i < SIPMNUM;i++)
     {
         infile >> index >> theta >> phi;
+        // cout << "SiPM index : "<< index <<" theta : "<< theta <<" phi : "<<phi<<endl;
         sipm_theta[index] = theta;
         sipm_phi[index] = phi;
         sipm_vec[index] = TVector3(

@@ -12,8 +12,7 @@ ChargeTemplate::ChargeTemplate()
 {
     tmp_num = TEMPLATENUM;
     cd_radius = 900;
-    sipm_radius = 900;
-    delta_r3 = pow(cd_radius,3)*1.0/(tmp_num - 1);
+    sipm_radius = 930.2;
     initialize();
 }
 
@@ -24,8 +23,8 @@ ChargeTemplate::~ChargeTemplate()
 bool ChargeTemplate::initialize()
 {
     string root_dir = getenv("CHARGETEMPLATEPOSROOT");
-    ifstream info_file((root_dir + "/input/templates.txt").c_str());
-    string file_name = "/input/old_templates.root";
+    ifstream info_file((root_dir + "/input/templates_ref.txt").c_str());
+    string file_name = "/input/templates_ref.root";
     tmp_file = new TFile((root_dir + file_name).c_str());
     for(int i = 0;i < tmp_num ;i++)
     {
@@ -33,9 +32,8 @@ bool ChargeTemplate::initialize()
         char tmp_name[30];
         info_file >> radius >> tmp_name;   
         tmp_radius[i] = radius;
-        // sprintf(tmp_name,"r_%d.0",int(radius));
+        // cout << "Templare radius : "<< radius <<" name : "<< tmp_name <<endl;
         tmp[i] = (TH1F*) tmp_file->Get(tmp_name);
-        // cout<< tmp_name << tmp[i]->Interpolate(90) << endl;
     }
     info_file.close();
     cout << "ChargeTemplate Initialization Finished !!!" << endl;
@@ -110,6 +108,10 @@ float ChargeTemplate::cal_sipm_distance(float radius, float theta)
 float ChargeTemplate::CalExpChargeHit(float radius, float theta, float alpha)
 {
     int index = get_template_index(radius);
+    if(index == TEMPLATENUM - 1)
+    {
+        index -= 1;
+    }
     // before charge template information
     float b_tmp_radius = get_template_radius(index);
     float b_correct_factor = cal_sipm_proj(b_tmp_radius, theta)/pow(cal_sipm_distance(b_tmp_radius, theta),2);
@@ -123,6 +125,7 @@ float ChargeTemplate::CalExpChargeHit(float radius, float theta, float alpha)
 
     // calculate weight
     float b_weight = abs(pow(radius,3) - pow(f_tmp_radius,3))/(abs(pow(radius,3) - pow(b_tmp_radius,3)) + abs(pow(radius,3) - pow(f_tmp_radius,3)));
+    // float b_weight = abs(radius - f_tmp_radius)/(abs(radius - b_tmp_radius) + abs(radius - f_tmp_radius));
 
     // cal ..
     float correct_factor = cal_sipm_proj(radius, theta)/pow(cal_sipm_distance(radius, theta),2);

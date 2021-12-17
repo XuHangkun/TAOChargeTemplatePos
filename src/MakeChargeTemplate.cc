@@ -51,6 +51,7 @@ MakeChargeTemplate::~MakeChargeTemplate()
 bool MakeChargeTemplate::initialize()
 {
     // Parameters
+    close_dark_noise = true;
     if ( close_dark_noise )
     { 
         elec_effects -> set_open_dark_noise(false); 
