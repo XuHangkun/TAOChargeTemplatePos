@@ -11,6 +11,7 @@ def get_parser():
     parser.add_argument("--evtmax", type=int, default=10, help='events to be processed')
     parser.add_argument("--seed", type=int, default=42, help='seed')
     parser.add_argument("--temp_radius", type = int, default = 0, help= "Charge Template Radius")
+    parser.add_argument("--charge_template_file", default = "Alpha_charge_template", help='close dark noise')
     parser.add_argument("--close_dark_noise", action = "store_true", help='close dark noise')
     parser.add_argument("--close_inter_ct", action = "store_true", help='close internal cross talk')
     parser.add_argument("--close_charge_resolution", action = "store_true", help='close charge resolution')
@@ -70,6 +71,7 @@ if __name__ == "__main__":
         anadetsimalg.property("CloseDarkNoise").set(True)
     else:
         anadetsimalg.property("CloseDarkNoise").set(args.close_dark_noise)
+        anadetsimalg.property("ChargeTemplateFile").set(args.charge_template_file)
 
     task.show()
     task.run()

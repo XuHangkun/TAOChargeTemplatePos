@@ -43,6 +43,9 @@ class MakeChargeTemplate : public AlgBase
         float fGdLSEdepX;
         float fGdLSEdepY;
         float fGdLSEdepZ;
+        std::vector<float> fPrimParticleX;
+        std::vector<float> fPrimParticleY;
+        std::vector<float> fPrimParticleZ;
         float fNSiPMHit;
         float fSiPMHits[SIPMNUM] = {0};
         std::vector<int> fSiPMHitID;
