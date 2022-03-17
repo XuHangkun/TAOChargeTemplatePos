@@ -4,6 +4,8 @@
 #include "TH1F.h"
 #include "TFile.h"
 #define TEMPLATENUM 101
+#include <string>
+#include <vector>
 
 /*
  * ChargeTemplate
@@ -12,20 +14,17 @@
 class ChargeTemplate
 {
     public:
-        ChargeTemplate();
+        ChargeTemplate(std::string charge_template_file);
         ~ChargeTemplate();
 
         bool initialize();
         bool finalize();
 
-        int correct_index(int index);
-
-        int get_template_index(float radius);
+        float LinearInterpolation(float radius, float x0, float y0, float x1, float y1);
+        int FindBeforeIndex(float radius, int low, int high);
         float get_template_radius(int index);
         TH1F* get_template(int index);
-        float Interpolate(int index,float theta);
-
-        float CalExpChargeHit(float radius, float theta, float alpha);
+        float CalExpChargeHit(float radius, float theta);
         float cal_sipm_proj(float radius, float theta);
         float cal_sipm_distance(float radius, float theta);
 
@@ -33,9 +32,12 @@ class ChargeTemplate
         int tmp_num;
         float cd_radius;
         float sipm_radius;
-        float tmp_radius[TEMPLATENUM];
-        TH1F* tmp[TEMPLATENUM];
+        float max_tmp_radius;
+        int tmp_numbers;
+        std::vector<float> tmp_radius;
+        std::vector<TH1F*> tmp;
         TFile* tmp_file;
+        std::string charge_template_file;
 };
 
 #endif

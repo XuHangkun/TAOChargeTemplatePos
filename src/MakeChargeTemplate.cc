@@ -33,14 +33,13 @@ MakeChargeTemplate::MakeChargeTemplate(const std::string& name)
 {
     tao_sipm = new TaoSiPM();
 
-    declProp("CloseDarkNoise", close_dark_noise = false);
-    declProp("CloseInterCT", close_inter_ct = false);
+    declProp("CloseDarkNoise", close_dark_noise = true);
+    declProp("CloseInterCT", close_inter_ct = true);
     declProp("CloseChargeResolution", close_charge_resolution = false);
     declProp("TempRadius", template_radius = 0);
 
     // generate elec effects
     elec_effects = new ElecEffects(tao_sipm);
-
 
 }
 
@@ -132,8 +131,15 @@ bool MakeChargeTemplate::execute()
     fGdLSEdepX = sim_event->GdLSEdepX();
     fGdLSEdepY = sim_event->GdLSEdepY();
     fGdLSEdepZ = sim_event->GdLSEdepZ();
+    fPrimParticleX = sim_event->PrimParticleX();
+    fPrimParticleY = sim_event->PrimParticleY();
+    fPrimParticleZ = sim_event->PrimParticleZ();
     fNSiPMHit = sim_event->NSiPMHit();
     fSiPMHitID = sim_event->SiPMHitID();
+    if (fNSiPMHit < 1)
+    {
+        return true;
+    }
     for(int i=0;i<fSiPMHitID.size();i++)
     {
         fSiPMHits[fSiPMHitID[i]]++;
@@ -148,9 +154,15 @@ bool MakeChargeTemplate::execute()
     }
 
     // Fill Histogram
-    TVector3 edep_vec(fGdLSEdepX, fGdLSEdepY, fGdLSEdepZ);
+    // TVector3 edep_vec(fGdLSEdepX, fGdLSEdepY, fGdLSEdepZ);
+    TVector3 edep_vec(
+            fPrimParticleX[0] + 0.001*myrandom(), 
+            fPrimParticleY[0] + 0.001*myrandom(), 
+            fPrimParticleZ[0] + 0.001*myrandom()
+            );
     float edep_radius = edep_vec.Mag();
-    if(edep_radius > template_radius - 1 && edep_radius < template_radius + 1)
+    // if(edep_radius > template_radius - 1 && edep_radius < template_radius + 1)
+    if(true)
     {
         for(int i=0; i<SIPMNUM;i++)
         {

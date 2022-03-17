@@ -12,10 +12,10 @@ TaoSiPM::TaoSiPM()
     sipm_num = SIPMNUM;
     sipm_radius = 930.2;
     sipm_area = 2500;
-    sipm_noise = 100;
+    sipm_noise = 15;
     sipm_readout_window = 600*1.e-9;
     dark_noise_prob = sipm_area*sipm_noise*sipm_readout_window;
-    inter_cross_talk_prob = 0.2;
+    inter_cross_talk_prob = 0.05;
     charge_resolution = 0.16;
     initialize();
 }

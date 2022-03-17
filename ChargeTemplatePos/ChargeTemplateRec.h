@@ -16,6 +16,7 @@
 #include "Math/Factory.h"
 #include "Minuit2/FCNBase.h"
 #include <vector>
+#include <string>
 
 #define NSCAN 360
 
@@ -27,10 +28,11 @@ class ChargeTemplateRec : public AlgBase
 {
     public:
         ChargeTemplateRec(const std::string & name);
-        ~ChargeTemplateRec();
-        
-        double Chi2(double nhit,double x,double y,double z,double lambda);
+        ~ChargeTemplateRec();      
+
+        double Chi2(double nhit,double x,double y,double z, double alpha_ge68);
         double LogPoisson(double obj,double exp);
+        void CorrectCCVertex();
 
         bool initialize();
         bool execute();
@@ -60,17 +62,19 @@ class ChargeTemplateRec : public AlgBase
         };
 
         // charge expectation
-        float CalExpChargeHit(float radius,float theta, float alpha, float lambda);
+        float CalExpChargeHit(float radius,float theta, float alpha, float alpha_ge68);
 
     private:
         // input
         TaoSiPM* tao_sipm;
         ElecEffects* elec_effects;
         ChargeTemplate* charge_template;
+        ChargeTemplate* charge_template_ge68;
         float CD_radius;
 
         //minimizer
         ROOT::Math::Minimizer* vtxllminimizer;
+        ROOT::Math::Minimizer* vtxllminimizer_migrad;
         VertexRecLikelihoodFCN* vtxllfcn; 
         
         // result
@@ -81,6 +85,7 @@ class ChargeTemplateRec : public AlgBase
         float fGdLSEdepX;
         float fGdLSEdepY;
         float fGdLSEdepZ;
+        float fGdLSEdepR;
         float fNSiPMHit;
         float fSiPMHits[SIPMNUM] = {0};
         std::vector<int> fSiPMHitID;
@@ -91,14 +96,18 @@ class ChargeTemplateRec : public AlgBase
         float fRecX;
         float fRecY;
         float fRecZ;
+        float fRecR;
+        float fRecGammaTempRatio;
         float fCCRecX;
         float fCCRecY;
         float fCCRecZ;
+        float fCCRecR;
         float fDecayLength;
         float fChi2;
         float fEdm;
 
         // params to control the alg
+        char* charge_template_file;
         bool close_dark_noise;
         bool close_inter_ct;
         bool close_charge_resolution;
