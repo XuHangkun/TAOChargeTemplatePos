@@ -71,7 +71,7 @@ bool ChargeTemplateRec::initialize()
     std::cout << "Charge center alg. factor : "<<cc_factor<<std::endl;
 
     charge_template = new ChargeTemplate(charge_template_file);
-    charge_template_ge68 = new ChargeTemplate("Ge68_charge_template");
+    charge_template_ge68 = new ChargeTemplate("Ge68_charge_template_normal");
 
     // = access the geometry =
     // SniperPtr<SimGeomSvc> simgeom_svc(getParent(), "SimGeomSvc");
@@ -107,15 +107,23 @@ bool ChargeTemplateRec::initialize()
     evt->Branch("fGdLSEdepX", &fGdLSEdepX, "fGdLSEdepX/f");
     evt->Branch("fGdLSEdepY", &fGdLSEdepY, "fGdLSEdepY/f");
     evt->Branch("fGdLSEdepZ", &fGdLSEdepZ, "fGdLSEdepZ/f");
+    evt->Branch("fGdLSEdepR", &fGdLSEdepR, "fGdLSEdepR/f");
+    evt->Branch("fGdLSEdepTheta", &fGdLSEdepTheta, "fGdLSEdepTheta/f");
+    evt->Branch("fGdLSEdepPhi", &fGdLSEdepPhi, "fGdLSEdepPhi/f");
     evt->Branch("fRecNHit", &fRecNHit, "fRecNHit/f");
     evt->Branch("fRecX", &fRecX, "fRecX/f");
     evt->Branch("fRecY", &fRecY, "fRecY/f");
     evt->Branch("fRecZ", &fRecZ, "fRecZ/f");
+    evt->Branch("fRecR", &fRecR, "fRecR/f");
+    evt->Branch("fRecTheta", &fRecTheta, "fRecTheta/f");
+    evt->Branch("fRecPhi", &fRecPhi, "fRecPhi/f");
     evt->Branch("fRecGammaTempRatio", &fRecGammaTempRatio, "fRecGammaTempRatio/f");
     evt->Branch("fCCRecX", &fCCRecX, "fCCRecX/f");
     evt->Branch("fCCRecY", &fCCRecY, "fCCRecY/f");
     evt->Branch("fCCRecZ", &fCCRecZ, "fCCRecZ/f");
-    evt->Branch("fDecayLength", &fDecayLength, "fDecayLength/f");
+    evt->Branch("fCCRecR", &fCCRecR, "fCCRecR/f");
+    evt->Branch("fCCRecTheta", &fCCRecTheta, "fCCRecTheta/f");
+    evt->Branch("fCCRecPhi", &fCCRecPhi, "fCCRecPhi/f");
     evt->Branch("fChi2", &fChi2, "fChi2/f");
     evt->Branch("fEdm", &fEdm, "fEdm/f");
 
@@ -123,8 +131,6 @@ bool ChargeTemplateRec::initialize()
     vtxllfcn = new VertexRecLikelihoodFCN(this);
     vtxllminimizer_migrad = ROOT::Math::Factory::CreateMinimizer("Minuit2","Migrad");
     vtxllminimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2","Simplex");
-    // vtxllminimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2","scan");
-
     return true;
 }
 
@@ -160,6 +166,10 @@ bool ChargeTemplateRec::execute()
     fGdLSEdepX = sim_event->GdLSEdepX();
     fGdLSEdepY = sim_event->GdLSEdepY();
     fGdLSEdepZ = sim_event->GdLSEdepZ();
+    TVector3 v_edep(fGdLSEdepX,fGdLSEdepY,fGdLSEdepZ);
+    fGdLSEdepR = v_edep.Mag();
+    fGdLSEdepTheta = v_edep.Theta();
+    fGdLSEdepPhi = v_edep.Phi();
     fNSiPMHit = sim_event->NSiPMHit();
     fSiPMHitID = sim_event->SiPMHitID();
     for(int i=0;i<fSiPMHitID.size();i++)
@@ -177,12 +187,6 @@ bool ChargeTemplateRec::execute()
 
     // charge center reconstruction
     CalChargeCenter();
-
-    // if ((fGdLSEdepX*fGdLSEdepX + fGdLSEdepY*fGdLSEdepY + fGdLSEdepZ*fGdLSEdepZ) > 750*750)
-    // {
-    //     update();
-    //     return true;
-    // }
 
     // start reconstruction
     VertexMinimize();
@@ -215,7 +219,7 @@ double ChargeTemplateRec::Chi2(
     for(int i=0;i < tao_sipm->get_num(); i++)
     {
 
-        float angle = v_vec.Angle(tao_sipm->get_vec(i) - v_vec);
+        float angle = v_vec.Angle(tao_sipm->get_vec(i));
         float exp_hit = CalExpChargeHit(vr, angle*180/PI, nhit, alpha_ge68);
         if(close_dark_noise){
             exp_hit *= 1.0;
@@ -257,27 +261,24 @@ bool ChargeTemplateRec::VertexMinimize()
     
     TVector3 v_cc(fCCRecX,fCCRecY,fCCRecZ);
     TVector3 v_edep(fGdLSEdepX,fGdLSEdepY,fGdLSEdepZ);
-    float fCCRadius = v_cc.Mag();
+    float fCCRadius = fCCRecR;
     while (fCCRadius > 900)
     {
         v_cc *= (890./fCCRadius);
         fCCRadius = 890;
     } 
-    fCCRecR = fCCRadius;
     fRecGammaTempRatio = 0.2;
     
-    float estimated_decay_length = 16.93*1000; // average absorption length in mm
     float exp_hit_init = fNSiPMHit;
     if(!close_dark_noise)
     { 
         exp_hit_init -= tao_sipm->get_num()*tao_sipm->get_dark_noise_prob();
     }
     vtxllminimizer->SetVariable(0,"hits",exp_hit_init,3);
-    vtxllminimizer->SetVariable(1,"radius",fCCRecR,1);
+    vtxllminimizer->SetVariable(1,"radius",fCCRadius,1);
     vtxllminimizer->SetFixedVariable(2,"theta",v_cc.Theta());
     vtxllminimizer->SetFixedVariable(3,"phi",v_cc.Phi());
-    vtxllminimizer->SetLimitedVariable(4,"alpha_ge68",0.2,0.05,0,1);
-    // vtxllminimizer->SetFixedVariable(4,"alpha_ge68",1);
+    vtxllminimizer->SetLimitedVariable(4,"alpha_ge68",fRecGammaTempRatio,0.05,0,1);
 
     int goodness = 0;
     goodness = vtxllminimizer->Minimize();
@@ -301,8 +302,9 @@ bool ChargeTemplateRec::VertexMinimize()
     fRecY    = v_rec.Y();
     fRecZ    = v_rec.Z();
     fRecR    = xs[1];
+    fRecTheta    = xs[2];
+    fRecPhi    = xs[3];
     fRecGammaTempRatio = xs[4];
-    fDecayLength    = goodness*1.0;
     fChi2    = vtxllminimizer_migrad->MinValue(); 
     fEdm     = vtxllminimizer_migrad->Edm();
     return true;
@@ -360,7 +362,6 @@ bool ChargeTemplateRec::CalChargeCenter()
     for(int i=0; i < SIPMNUM;i ++){
         cc_vec += fSiPMHits[i]*tao_sipm->get_vec(i);
     }
-    // cc_vec *= (1.0/cc_factor)*(1.0/fNSiPMHit);
     cc_vec *= (1.0/1.0)*(1.0/fNSiPMHit);
     if(close_dark_noise)
     {
@@ -377,6 +378,9 @@ bool ChargeTemplateRec::CalChargeCenter()
     fCCRecX = cc_vec.X();
     fCCRecY = cc_vec.Y();
     fCCRecZ = cc_vec.Z();
+    fCCRecR = cc_vec.Mag();
+    fCCRecTheta = cc_vec.Theta();
+    fCCRecPhi = cc_vec.Phi();
 } 
  
 double ChargeTemplateRec::LogPoisson(double obj,double exp_n)
@@ -395,4 +399,3 @@ float ChargeTemplateRec::CalExpChargeHit(float radius, float theta, float alpha,
     float exp_hit = charge_template -> CalExpChargeHit(radius, theta); 
     float exp_hit_ge68 = charge_template_ge68 -> CalExpChargeHit(radius, theta);
     return alpha*((1 - ge68_ratio)*exp_hit + ge68_ratio * exp_hit_ge68);
-}

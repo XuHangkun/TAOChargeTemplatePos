@@ -98,14 +98,6 @@ float ChargeTemplate::LinearInterpolation(float radius, float x0, float y0, floa
 
 int ChargeTemplate::FindBeforeIndex(float radius, int low, int high)
 {
-    // for(int i = 0; i < tmp_numbers - 1; i++)
-    // {
-    //     if((tmp_radius[i] <= radius) & (radius < tmp_radius[i+1]))
-    //     {
-    //         return i;
-    //     }
-    // }
-    // return 0;
     if (low == high){
         if(radius < tmp_radius[low]){
             return max(low - 1, 0);
@@ -155,7 +147,6 @@ float ChargeTemplate::CalExpChargeHit(float radius, float theta)
     // get linear interpolation
     float exp_hit = LinearInterpolation(pow(radius,1), pow(b_tmp_radius,1), b_temp_hit, pow(f_tmp_radius,1), f_temp_hit);
     
-    // cal ..
     float correct_factor = cal_sipm_proj(radius, sipm_distance)/pow(sipm_distance,2);
     exp_hit = correct_factor * exp_hit;
     return exp_hit;
